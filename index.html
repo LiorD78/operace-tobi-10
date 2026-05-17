@@ -92,9 +92,13 @@ body {
   color: var(--neon); font-family: var(--font-mono);
   font-size: 16px; letter-spacing: 3px;
   padding: 14px 32px; cursor: pointer;
-  opacity: 0; animation: bootBtnIn 0.6s forwards;
-  animation-delay: 4.6s;
-  transition: all 0.3s;
+  opacity: 0; animation: bootBtnIn 0.6s forwards, bootBtnPulse 1.8s ease-in-out infinite 5.2s;
+  animation-delay: 4.6s, 5.2s;
+  transition: background 0.3s, color 0.3s, box-shadow 0.3s, transform 0.3s;
+}
+@keyframes bootBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(110, 231, 247, 0.6); }
+  50% { box-shadow: 0 0 0 12px rgba(110, 231, 247, 0); }
 }
 .boot-btn:hover {
   background: var(--neon); color: var(--bg);
@@ -673,11 +677,7 @@ body {
 document.getElementById('bootBtn').addEventListener('click', () => {
   document.getElementById('boot').classList.add('hidden');
 });
-// Auto-dismiss after 8 seconds
-setTimeout(() => {
-  const boot = document.getElementById('boot');
-  if (boot && !boot.classList.contains('hidden')) boot.classList.add('hidden');
-}, 8000);
+// Boot screen waits for user click - no auto-dismiss
 
 // ===== CUSTOM CROSSHAIR CURSOR =====
 const crosshair = document.getElementById('crosshair');
