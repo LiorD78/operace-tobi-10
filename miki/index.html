@@ -740,6 +740,25 @@ const observer = new IntersectionObserver((entries) => {
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
+// ===== ANCHOR SMOOTH-SCROLL (reveals target first to avoid layout shift) =====
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    const targetId = link.getAttribute('href').slice(1);
+    if (!targetId) return;
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    e.preventDefault();
+    // Immediately reveal any .reveal elements inside the target section
+    // so their translateY(40px) doesn't shift the final scroll position
+    target.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+    // Wait one frame for layout, then scroll
+    requestAnimationFrame(() => {
+      const top = target.getBoundingClientRect().top + window.pageYOffset;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+});
+
 // ===== SCRAMBLE TEXT EFFECT (reliable version) =====
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&';
 const activeScrambles = new WeakMap();
