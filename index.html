@@ -171,7 +171,7 @@ body {
 }
 .hero-bg {
   position: absolute; inset: 0;
-  background-size: cover; background-position: center right;
+  background-size: cover; background-position: 70% center;
   background-repeat: no-repeat;
   filter: brightness(0.7) contrast(1.1) saturate(1.2);
   animation: heroZoom 20s ease-in-out infinite alternate;
@@ -392,7 +392,7 @@ body {
 
 /* Smaller hero for mobile */
 @media (max-width: 600px) {
-  .hero-bg { background-position: center 30%; }
+  .hero-bg { background-position: 75% center; background-size: cover; }
   .countdown { gap: 4px; }
   .cd-block { min-width: 60px; padding: 8px 10px; }
   .cd-sep { font-size: 18px; }
