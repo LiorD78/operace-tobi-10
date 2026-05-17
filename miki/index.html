@@ -389,8 +389,8 @@ body {
 .footer-meta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10px; color: rgba(110,231,247,0.3); letter-spacing: 3px; }
 
 /* ===== REVEAL ON SCROLL ===== */
-.reveal { opacity: 0; transform: translateY(40px); transition: all 0.8s ease-out; }
-.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal { opacity: 0; transition: opacity 0.8s ease-out; }
+.reveal.visible { opacity: 1; }
 
 /* Smaller hero for mobile */
 @media (max-width: 600px) {
@@ -740,7 +740,7 @@ const observer = new IntersectionObserver((entries) => {
 
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-// ===== ANCHOR SMOOTH-SCROLL (reveals target first to avoid layout shift) =====
+// ===== ANCHOR SMOOTH-SCROLL =====
 document.querySelectorAll('a[href^="#"]').forEach(link => {
   link.addEventListener('click', e => {
     const targetId = link.getAttribute('href').slice(1);
@@ -748,19 +748,7 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     const target = document.getElementById(targetId);
     if (!target) return;
     e.preventDefault();
-    // Immediately reveal any .reveal elements inside the target section
-    // so their translateY(40px) doesn't shift the final scroll position
-    target.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
-    // Wait one frame for layout, then scroll
-    requestAnimationFrame(() => {
-      // Prefer scrolling to the section's header (skips top padding)
-      // so the title is properly aligned with the viewport top
-      const header = target.querySelector('.section-header') || target;
-      const rect = header.getBoundingClientRect();
-      const offset = 24; // small breathing room above the title
-      const top = rect.top + window.pageYOffset - offset;
-      window.scrollTo({ top, behavior: 'smooth' });
-    });
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 });
 
