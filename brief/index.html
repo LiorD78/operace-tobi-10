@@ -616,11 +616,6 @@ body {
 if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
 window.scrollTo(0, 0);
 
-// ===== BOOT SEQUENCE =====
-document.getElementById('bootBtn').addEventListener('click', () => {
-  document.getElementById('boot').classList.add('hidden');
-});
-// Boot screen waits for user click - no auto-dismiss
 
 // ===== CUSTOM CROSSHAIR CURSOR =====
 const crosshair = document.getElementById('crosshair');
