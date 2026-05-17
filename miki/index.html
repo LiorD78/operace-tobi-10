@@ -748,9 +748,32 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     const target = document.getElementById(targetId);
     if (!target) return;
     e.preventDefault();
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Force-reveal any .reveal elements between current position and target
+    // to prevent layout shift during the scroll animation.
+    document.querySelectorAll('.reveal:not(.visible)').forEach(el => {
+      el.classList.add('visible');
+    });
+
+    // Wait two frames for the layout to fully settle, then scroll.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const top = target.getBoundingClientRect().top + window.pageYOffset;
+        window.scrollTo({ top, behavior: 'smooth' });
+
+        // Correction pass: re-check position after scroll likely finished (700ms)
+        // and snap to exact target if browser landed off due to any late layout change.
+        setTimeout(() => {
+          const correctedTop = target.getBoundingClientRect().top + window.pageYOffset;
+          if (Math.abs(window.pageYOffset - correctedTop) > 4) {
+            window.scrollTo({ top: correctedTop, behavior: 'smooth' });
+          }
+        }, 700);
+      });
+    });
   });
 });
+
 
 // ===== SCRAMBLE TEXT EFFECT (reliable version) =====
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&';
