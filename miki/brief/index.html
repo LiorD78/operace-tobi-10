@@ -612,6 +612,10 @@ body {
 </footer>
 
 <script>
+// Scroll reset on load
+if ('scrollRestoration' in history) { history.scrollRestoration = 'manual'; }
+window.scrollTo(0, 0);
+
 // ===== BOOT SEQUENCE =====
 document.getElementById('bootBtn').addEventListener('click', () => {
   document.getElementById('boot').classList.add('hidden');
