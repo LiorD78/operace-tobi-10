@@ -69,11 +69,11 @@ body {
   font-family: var(--font-mono);
   font-size: clamp(12px, 2vw, 16px);
   color: var(--neon); margin-bottom: 12px;
-  opacity: 0; overflow: hidden; white-space: nowrap;
-  border-right: 2px solid var(--neon);
-  width: 0;
-  animation: typewriter 0.9s steps(45) forwards;
+  opacity: 0; white-space: nowrap; min-height: 1.2em;
 }
+.boot-tap-prompt { margin-top: 28px; text-align: center; }
+.boot-tap-blink { font-family: var(--font-mono); color: var(--neon); font-size: clamp(12px,1.8vw,15px); letter-spacing: 2px; animation: tapBlink 1s steps(1) infinite; cursor: pointer; }
+@keyframes tapBlink { 0%,55% { opacity: 1; } 55.01%,100% { opacity: 0.2; } }
 .boot-line.success { color: #4ade80; }
 .boot-line:nth-child(1) { animation-delay: 0.2s; }
 .boot-line:nth-child(2) { animation-delay: 1.1s; }
@@ -548,6 +548,7 @@ body {
   window.SFX = {
     beep(){ tone(880,0.07,'square',0.06); },
     blip(){ tone(1200,0.04,'square',0.05); },
+    type(){ tone(1350+Math.random()*550,0.012,'square',0.025); },
     hover(){ tone(680,0.025,'sine',0.035); },
     click(){ tone(520,0.05,'square',0.10); tone(720,0.05,'square',0.08,0.025); },
     granted(){ tone(523,0.09,'sine',0.14); tone(659,0.09,'sine',0.14,0.09); tone(784,0.18,'sine',0.16,0.18); tone(1047,0.22,'sine',0.12,0.30); },
@@ -599,6 +600,71 @@ window.scrollTo(0, 0);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
   else bind();
+})();
+
+
+// ===== BOOT TYPEWRITER (tap to start, teletype sound) =====
+(function(){
+  const boot = document.getElementById('boot');
+  if (!boot) return;
+  const inner = boot.querySelector('.boot-inner');
+  const lines = Array.from(boot.querySelectorAll('.boot-line'));
+  const bootBtn = document.getElementById('bootBtn');
+  if (!lines.length) return;
+
+  // Ulož texty řádků, vyprázdni je
+  const texts = lines.map(function(l){ return l.textContent.replace('_','').replace(/\s+$/,''); });
+  lines.forEach(function(l){ l.textContent=''; l.style.opacity='0'; });
+  if (bootBtn){ bootBtn.style.opacity='0'; bootBtn.style.pointerEvents='none'; bootBtn.style.animation='none'; }
+
+  // Výzva ke spuštění
+  const prompt = document.createElement('div');
+  prompt.className = 'boot-tap-prompt';
+  prompt.innerHTML = '<span class="boot-tap-blink">▸ KLEPNI PRO PŘIPOJENÍ K TERMINÁLU ◂</span>';
+  if (inner) inner.appendChild(prompt);
+
+  let started = false;
+  function start(){
+    if (started) return; started = true;
+    if (window.SFX) window.SFX.beep(); // unlock + úvodní pípnutí
+    if (prompt) prompt.remove();
+    let li = 0;
+    function typeLine(){
+      if (li >= lines.length){
+        if (bootBtn){
+          bootBtn.style.transition='opacity 0.5s ease';
+          bootBtn.style.opacity='1';
+          bootBtn.style.pointerEvents='auto';
+          bootBtn.style.animation='bootBtnPulse 1.8s ease-in-out infinite 0.6s';
+        }
+        return;
+      }
+      const el = lines[li];
+      const txt = texts[li];
+      el.style.opacity='1';
+      const cursor = document.createElement('span');
+      cursor.className='terminal-cursor'; cursor.textContent='_';
+      el.appendChild(cursor);
+      let ci = 0;
+      const speed = 28 + Math.random()*14;
+      const iv = setInterval(function(){
+        if (ci < txt.length){
+          cursor.insertAdjacentText('beforebegin', txt[ci]);
+          if (txt[ci] !== ' ' && window.SFX) window.SFX.type();
+          ci++;
+        } else {
+          clearInterval(iv);
+          const isLast = (li === lines.length-1);
+          if (isLast && window.SFX) window.SFX.granted();
+          if (!isLast) cursor.remove();
+          li++;
+          setTimeout(typeLine, 260);
+        }
+      }, speed);
+    }
+    typeLine();
+  }
+  boot.addEventListener('pointerdown', start, { once:true });
 })();
 
 </script>
