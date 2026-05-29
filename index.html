@@ -413,13 +413,20 @@ body {
 .terminal-cursor { display: inline-block; margin-left: 6px; color: var(--neon-success, #4ade80); font-weight: 700; animation: cursorBlink 0.9s steps(1) infinite; }
 @keyframes cursorBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 
-.sound-toggle { position: fixed; z-index: 70; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.55); border: 1px solid var(--neon, #6ee7f7); color: var(--neon, #6ee7f7); font-size: 15px; line-height: 1; padding: 7px 11px; cursor: pointer; border-radius: 6px; backdrop-filter: blur(4px); transition: background 0.2s, box-shadow 0.2s; }
-.sound-toggle:hover { background: rgba(110,231,247,0.18); box-shadow: 0 0 14px rgba(110,231,247,0.4); }
-@media (max-width: 600px) { .sound-toggle { top: 10px; font-size: 14px; padding: 6px 9px; } }
+
+.audio-controls { position: fixed; z-index: 70; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+.audio-btn { background: rgba(0,0,0,0.55); border: 1px solid var(--neon, #6ee7f7); color: var(--neon, #6ee7f7); font-size: 15px; line-height: 1; padding: 7px 11px; cursor: pointer; border-radius: 6px; backdrop-filter: blur(4px); transition: background 0.2s, box-shadow 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s; }
+.audio-btn:hover { background: rgba(110,231,247,0.18); box-shadow: 0 0 14px rgba(110,231,247,0.4); }
+.audio-btn.active { border-color: var(--amber, #F59E0B); color: var(--amber, #F59E0B); box-shadow: 0 0 12px rgba(245,158,11,0.45); }
+#musicToggle:not(.active) { opacity: 0.5; }
+@media (max-width: 600px) { .audio-controls { top: 10px; } .audio-btn { font-size: 14px; padding: 6px 9px; } }
 </style>
 </head>
 <body>
-<button class="sound-toggle" id="soundToggle" aria-label="Zapnout/vypnout zvuk" title="Zvuk">🔊</button>
+<div class="audio-controls">
+<button class="audio-btn" id="musicToggle" aria-label="Hudba" title="Zapnout hudbu">🎵</button>
+<button class="audio-btn" id="soundToggle" aria-label="Zvuk" title="Zvuk">🔊</button>
+</div>
 
 
 <div id="boot" class="boot">
@@ -437,67 +444,186 @@ body {
 
 <script>
 
-// ===== SOUND ENGINE (Web Audio API — retro terminal SFX) =====
+// ===== AUDIO ENGINE (Web Audio API — SFX + originální spy hudba) =====
 (function(){
   let ctx = null;
   let muted = false;
+  let musicOn = false;
   try { muted = localStorage.getItem('tobi-muted') === '1'; } catch(e) {}
-  function getCtx() {
-    if (!ctx) {
+  try { musicOn = localStorage.getItem('tobi-music') === '1'; } catch(e) {}
+  function getCtx(){
+    if (!ctx){
       try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
-      catch(e) { return null; }
+      catch(e){ return null; }
     }
-    if (ctx.state === 'suspended') { ctx.resume(); }
+    if (ctx.state === 'suspended'){ ctx.resume(); }
     return ctx;
   }
-  function tone(freq, duration, type, vol, delay) {
+  // ---- SFX ----
+  function tone(freq, duration, type, vol, delay){
     if (muted) return;
-    type = type || 'square'; vol = vol || 0.12; delay = delay || 0;
-    const c = getCtx(); if (!c) return;
-    const osc = c.createOscillator();
-    const gain = c.createGain();
-    osc.type = type; osc.frequency.value = freq;
+    type=type||'square'; vol=vol||0.12; delay=delay||0;
+    const c=getCtx(); if(!c) return;
+    const osc=c.createOscillator(), gain=c.createGain();
+    osc.type=type; osc.frequency.value=freq;
     osc.connect(gain); gain.connect(c.destination);
-    const t = c.currentTime + delay;
-    gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(vol, t + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
-    osc.start(t); osc.stop(t + duration + 0.02);
+    const t=c.currentTime+delay;
+    gain.gain.setValueAtTime(0.0001,t);
+    gain.gain.exponentialRampToValueAtTime(vol,t+0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+    osc.start(t); osc.stop(t+duration+0.02);
+  }
+  function noise(duration, vol, hp, delay){
+    if (muted) return;
+    const c=getCtx(); if(!c) return;
+    delay=delay||0;
+    const len=Math.floor(c.sampleRate*duration);
+    const buf=c.createBuffer(1,len,c.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src=c.createBufferSource(); src.buffer=buf;
+    const f=c.createBiquadFilter(); f.type='highpass'; f.frequency.value=hp||6000;
+    const g=c.createGain();
+    src.connect(f); f.connect(g); g.connect(c.destination);
+    const t=c.currentTime+delay;
+    g.gain.setValueAtTime(vol||0.05,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+duration);
+    src.start(t); src.stop(t+duration+0.02);
   }
   window.SFX = {
-    beep(){ tone(880, 0.07, 'square', 0.06); },
-    click(){ tone(520, 0.05, 'square', 0.10); tone(720, 0.05, 'square', 0.08, 0.025); },
-    granted(){ tone(523, 0.09, 'sine', 0.14); tone(659, 0.09, 'sine', 0.14, 0.09); tone(784, 0.18, 'sine', 0.16, 0.18); tone(1047, 0.22, 'sine', 0.12, 0.30); },
-    decode(){ for (let i=0;i<7;i++){ tone(280 + Math.random()*700, 0.035, 'square', 0.05, i*0.045); } },
-    glitch(){ tone(110, 0.06, 'sawtooth', 0.05); tone(70, 0.05, 'sawtooth', 0.04, 0.025); },
+    beep(){ tone(880,0.07,'square',0.06); },
+    blip(){ tone(1200,0.04,'square',0.05); },
+    hover(){ tone(680,0.025,'sine',0.035); },
+    click(){ tone(520,0.05,'square',0.10); tone(720,0.05,'square',0.08,0.025); },
+    granted(){ tone(523,0.09,'sine',0.14); tone(659,0.09,'sine',0.14,0.09); tone(784,0.18,'sine',0.16,0.18); tone(1047,0.22,'sine',0.12,0.30); },
+    decode(){ for(let i=0;i<7;i++){ tone(280+Math.random()*700,0.035,'square',0.05,i*0.045);} },
+    glitch(){ tone(110,0.06,'sawtooth',0.05); noise(0.05,0.04,3000,0.02); },
     toggleMute(){
-      muted = !muted;
-      try { localStorage.setItem('tobi-muted', muted ? '1' : '0'); } catch(e) {}
-      if (!muted) { getCtx(); this.click(); }
+      muted=!muted;
+      try{ localStorage.setItem('tobi-muted',muted?'1':'0'); }catch(e){}
+      if(!muted){ getCtx(); this.click(); }
       return muted;
     },
     isMuted(){ return muted; }
   };
-  // Resume audio context on first user gesture (browser autoplay policy)
-  function unlock(){ getCtx(); document.removeEventListener('pointerdown', unlock); }
-  document.addEventListener('pointerdown', unlock, { once: true });
-})();
-
-// ===== SOUND TOGGLE BUTTON =====
-(function(){
-  function initToggle(){
-    const btn = document.getElementById('soundToggle');
-    if (!btn) return;
-    function refresh(){ btn.textContent = window.SFX && window.SFX.isMuted() ? '🔇' : '🔊'; }
-    refresh();
-    btn.addEventListener('click', function(e){
-      e.preventDefault(); e.stopPropagation();
-      if (window.SFX) window.SFX.toggleMute();
-      refresh();
+  // ---- MUSIC (originální spy/agent groove) ----
+  let schedTimer=null, step=0, nextTime=0, masterGain=null;
+  const BPM=124, STEP=15/BPM;
+  const N={E2:82.41,G2:98.00,A2:110.00,B2:123.47,C3:130.81,D3:146.83,E3:164.81,B3:246.94,D4:293.66,E4:329.63};
+  const KICK=[1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0];
+  const BASS=[N.E2,0,N.E2,N.E2, 0,N.E2,0,N.G2, N.A2,0,N.A2,0, N.B2,0,N.C3,0];
+  const HAT =[1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,1];
+  const STAB=[0,0,0,0, 0,0,0,0, N.E4,0,0,0, 0,0,N.D4,N.B3];
+  function mkKick(t){
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine';
+    o.frequency.setValueAtTime(155,t);
+    o.frequency.exponentialRampToValueAtTime(45,t+0.12);
+    o.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(0.6,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
+    o.start(t); o.stop(t+0.17);
+  }
+  function mkBass(freq,t){
+    if(!freq) return;
+    const o=ctx.createOscillator(), g=ctx.createGain(), f=ctx.createBiquadFilter();
+    o.type='sawtooth'; o.frequency.value=freq;
+    f.type='lowpass'; f.frequency.value=720; f.Q.value=7;
+    o.connect(f); f.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.42,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.15);
+    o.start(t); o.stop(t+0.17);
+  }
+  function mkHat(t){
+    const len=Math.floor(ctx.sampleRate*0.025);
+    const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const s=ctx.createBufferSource(); s.buffer=buf;
+    const f=ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=8500;
+    const g=ctx.createGain();
+    s.connect(f); f.connect(g); g.connect(masterGain);
+    g.gain.setValueAtTime(0.16,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.025);
+    s.start(t); s.stop(t+0.03);
+  }
+  function mkStab(freq,t){
+    if(!freq) return;
+    [0,3,7].forEach(function(semi){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='triangle'; o.frequency.value=freq*Math.pow(2,semi/12);
+      o.connect(g); g.connect(masterGain);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.10,t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.4);
+      o.start(t); o.stop(t+0.42);
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initToggle);
-  else initToggle();
+  function scheduler(){
+    while(nextTime < ctx.currentTime + 0.12){
+      const s=step%16;
+      if(KICK[s]) mkKick(nextTime);
+      mkBass(BASS[s],nextTime);
+      if(HAT[s]) mkHat(nextTime);
+      mkStab(STAB[s],nextTime);
+      nextTime += STEP; step++;
+    }
+    schedTimer=setTimeout(scheduler,25);
+  }
+  function startMusic(){
+    const c=getCtx(); if(!c) return;
+    if(schedTimer) return;
+    masterGain=c.createGain();
+    masterGain.gain.setValueAtTime(0.0001,c.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.6,c.currentTime+1.2);
+    masterGain.connect(c.destination);
+    step=0; nextTime=c.currentTime+0.1;
+    scheduler();
+  }
+  function stopMusic(){
+    if(schedTimer){ clearTimeout(schedTimer); schedTimer=null; }
+    if(masterGain && ctx){
+      try{
+        masterGain.gain.cancelScheduledValues(ctx.currentTime);
+        masterGain.gain.setValueAtTime(masterGain.gain.value,ctx.currentTime);
+        masterGain.gain.linearRampToValueAtTime(0.0001,ctx.currentTime+0.3);
+      }catch(e){}
+    }
+    masterGain=null;
+  }
+  window.MUSIC = {
+    start(){ musicOn=true; try{localStorage.setItem('tobi-music','1');}catch(e){} startMusic(); },
+    stop(){ musicOn=false; try{localStorage.setItem('tobi-music','0');}catch(e){} stopMusic(); },
+    toggle(){ if(musicOn) this.stop(); else this.start(); return musicOn; },
+    isOn(){ return musicOn; }
+  };
+  function unlock(){
+    getCtx();
+    if (musicOn) startMusic();
+    document.removeEventListener('pointerdown', unlock);
+  }
+  document.addEventListener('pointerdown', unlock, { once:true });
+})();
+
+// ===== AUDIO TOGGLE BUTTONS =====
+(function(){
+  function init(){
+    const sb=document.getElementById('soundToggle');
+    if(sb){
+      const r=function(){ sb.textContent = window.SFX && window.SFX.isMuted() ? '🔇' : '🔊'; };
+      r();
+      sb.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); if(window.SFX) window.SFX.toggleMute(); r(); });
+    }
+    const mb=document.getElementById('musicToggle');
+    if(mb){
+      const r=function(){ const on=window.MUSIC && window.MUSIC.isOn(); mb.textContent='🎵'; mb.classList.toggle('active',!!on); mb.title= on?'Vypnout hudbu':'Zapnout hudbu'; };
+      r();
+      mb.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); if(window.MUSIC) window.MUSIC.toggle(); r(); });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
 
 // Scroll reset on load
@@ -508,6 +634,18 @@ window.scrollTo(0, 0);
 (function(){
   const b = document.getElementById('bootBtn');
   if (b) b.addEventListener('click', function(){ if (window.SFX) window.SFX.granted(); });
+})();
+
+
+// ===== SOUND HOOK: hover on buttons =====
+(function(){
+  function bind(){
+    document.querySelectorAll('.boot-btn, .cta-btn, .cta-btn-secondary, .decoder-target, .audio-btn').forEach(function(el){
+      el.addEventListener('mouseenter', function(){ if(window.SFX) window.SFX.hover(); });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
 })();
 
 </script>
