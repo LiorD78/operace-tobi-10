@@ -412,6 +412,14 @@ body {
   }
   .scanlines, .vignette { display: none; }
 }
+
+.decoder-target { cursor: pointer; user-select: none; transition: color 0.2s; position: relative; }
+.decoder-target.locked { color: var(--amber, #F59E0B); letter-spacing: 1px; }
+.decoder-target.locked::after { content: " ▸"; font-size: 0.7em; opacity: 0.7; animation: cursorBlink 0.9s steps(1) infinite; }
+.decoder-target.unlocked::after { content: ""; }
+@keyframes cursorBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+.decoder-hint { display: block; font-family: var(--font-mono); font-size: 9px; color: var(--amber, #F59E0B); letter-spacing: 2px; opacity: 0.7; margin-top: 6px; }
+.decoder-hint.hidden { display: none; }
 </style>
 </head>
 <body>
@@ -491,7 +499,8 @@ body {
         <div class="card-corner card-corner-bl"></div><div class="card-corner card-corner-br"></div>
         <div class="card-icon">🔓</div>
         <div class="card-label">TAJNÉ HESLO</div>
-        <div class="card-value">„Laserem na nudu!"</div>
+        <div class="card-value decoder-target locked" data-secret="„Laserem na nudu!&quot;">[ KLIKNI PRO DEŠIFROVÁNÍ ]</div>
+        <span class="decoder-hint">// TAP TO DECODE //</span>
         <div class="card-sub">Řekni veliteli u vstupu</div>
       </div>
 
@@ -798,6 +807,46 @@ if (heroBg && window.matchMedia('(hover: hover)').matches) {
     }
   });
 }
+
+// ===== DECODER (tap-to-reveal) =====
+(function(){
+  const targets = document.querySelectorAll('.decoder-target');
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*';
+  targets.forEach(el => {
+    el.addEventListener('click', function reveal() {
+      if (el.classList.contains('unlocked')) return;
+      const secret = el.getAttribute('data-secret');
+      el.classList.remove('locked');
+      el.classList.add('unlocked');
+      const hint = el.parentElement.querySelector('.decoder-hint');
+      if (hint) hint.classList.add('hidden');
+      const total = 600; // ms total animation
+      const start = Date.now();
+      const tick = () => {
+        const t = (Date.now() - start) / total;
+        if (t >= 1) {
+          el.textContent = secret;
+          return;
+        }
+        // Each char locks in once progress passes its index ratio
+        let out = '';
+        for (let i = 0; i < secret.length; i++) {
+          if (i / secret.length < t) {
+            out += secret[i];
+          } else {
+            const ch = secret[i];
+            if (ch === ' ' || ch === '\u00A0') out += ' ';
+            else out += chars[Math.floor(Math.random() * chars.length)];
+          }
+        }
+        el.textContent = out;
+        requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  });
+})();
+
 </script>
 
 </body>

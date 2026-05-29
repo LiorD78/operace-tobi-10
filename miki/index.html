@@ -409,6 +409,9 @@ body {
   }
   .scanlines, .vignette { display: none; }
 }
+
+.terminal-cursor { display: inline-block; margin-left: 6px; color: var(--neon-success, #4ade80); font-weight: 700; animation: cursorBlink 0.9s steps(1) infinite; }
+@keyframes cursorBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -420,7 +423,7 @@ body {
     <div class="boot-line">&gt; PŘIPOJOVÁNÍ K VELITELSTVÍ...</div>
     <div class="boot-line">&gt; OVĚŘENÍ BEZPEČNOSTNÍCH KÓDŮ... OK</div>
     <div class="boot-line">&gt; DEŠIFROVÁNÍ ROZKAZU Č. 10...</div>
-    <div class="boot-line success">&gt; PŘÍSTUP UDĚLEN. VÍTEJ, AGENTE.</div>
+    <div class="boot-line success">&gt; PŘÍSTUP UDĚLEN. VÍTEJ, AGENTE.<span class="terminal-cursor">_</span></div>
     <a href="hero/" class="boot-btn" id="bootBtn">[ POKRAČOVAT ]</a>
   </div>
 </div>

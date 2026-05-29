@@ -416,6 +416,37 @@ body {
   }
   .scanlines, .vignette { display: none; }
 }
+
+.mission-title { position: relative; }
+.mission-title .title-line { position: relative; display: block; }
+.mission-title .title-line.glitch-active::before,
+.mission-title .title-line.glitch-active::after {
+  content: attr(data-text);
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.mission-title .title-line.glitch-active::before {
+  color: #ff003c; transform: translate(-2px, 0); clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  animation: glitchA 0.32s steps(2) 1;
+}
+.mission-title .title-line.glitch-active::after {
+  color: var(--neon); transform: translate(2px, 0); clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  animation: glitchB 0.32s steps(2) 1;
+}
+@keyframes glitchA {
+  0% { transform: translate(-2px, 0); opacity: 0.9; }
+  25% { transform: translate(-4px, 1px); }
+  50% { transform: translate(3px, -1px); }
+  75% { transform: translate(-1px, 1px); }
+  100% { transform: translate(0); opacity: 0; }
+}
+@keyframes glitchB {
+  0% { transform: translate(2px, 0); opacity: 0.9; }
+  25% { transform: translate(4px, -1px); }
+  50% { transform: translate(-3px, 1px); }
+  75% { transform: translate(1px, -1px); }
+  100% { transform: translate(0); opacity: 0; }
+}
 </style>
 </head>
 <body>
@@ -467,8 +498,8 @@ body {
 
     <div class="mission-label">// KÓDOVÉ OZNAČENÍ MISE //</div>
     <h1 class="mission-title">
-      <span class="title-line">OPERACE</span>
-      <span class="title-line title-accent">TOBI–10</span>
+      <span class="title-line" data-text="OPERACE">OPERACE</span>
+      <span class="title-line title-accent" data-text="TOBI–10">TOBI–10</span>
     </h1>
 
     <p class="mission-brief">
@@ -684,6 +715,30 @@ if (heroBg && window.matchMedia('(hover: hover)').matches) {
     }
   });
 }
+
+// ===== GLITCH EFFECT on mission title =====
+(function(){
+  const titleLines = document.querySelectorAll('.mission-title .title-line');
+  if (!titleLines.length) return;
+  function triggerGlitch() {
+    titleLines.forEach(line => {
+      line.classList.remove('glitch-active');
+      // force reflow so animation replays
+      void line.offsetWidth;
+      line.classList.add('glitch-active');
+    });
+    setTimeout(() => titleLines.forEach(line => line.classList.remove('glitch-active')), 350);
+  }
+  // initial glitch shortly after load
+  setTimeout(triggerGlitch, 600);
+  // periodic glitch every 7-11 seconds
+  function scheduleNext() {
+    const next = 7000 + Math.random() * 4000;
+    setTimeout(() => { triggerGlitch(); scheduleNext(); }, next);
+  }
+  scheduleNext();
+})();
+
 </script>
 
 </body>
