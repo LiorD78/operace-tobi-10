@@ -990,14 +990,18 @@ if (heroBg && window.matchMedia('(hover: hover)').matches) {
         setTimeout(() => { clearInterval(phaseTimer); hint.classList.add('hidden'); }, totalMs);
       }
 
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.textContent = secret;
+        if (window.SFX) window.SFX.granted();
+      };
       const start = Date.now();
       const tick = () => {
+        if (done) return;
         const t = (Date.now() - start) / totalMs;
-        if (t >= 1) {
-          el.textContent = secret;
-          if (window.SFX) window.SFX.granted();
-          return;
-        }
+        if (t >= 1) { finish(); return; }
         // Pomalu se "zamykají" znaky zleva; zbytek běsní náhodně.
         // Ease-in: většinu doby běží šifra, ke konci rychle doskládá.
         const reveal = Math.max(0, (t - 0.45) / 0.55); // začne odhalovat až po 45 % času
@@ -1016,6 +1020,8 @@ if (heroBg && window.matchMedia('(hover: hover)').matches) {
         requestAnimationFrame(tick);
       };
       tick();
+      // Pojistka: i kdyby rAF vázl (tab na pozadí), heslo se odhalí
+      setTimeout(finish, totalMs + 80);
     });
   });
 })();
